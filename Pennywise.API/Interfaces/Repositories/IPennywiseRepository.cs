@@ -11,6 +11,7 @@ namespace Pennywise.API.Interfaces.Repositories
         public Task<bool> UpdateTokenAndSyncEntities(IUpdateTokenAndSyncEntities dto);
 
         public Task<IList<IAccountsViewModel>?> GetAccountsViewModel(int userId);
+        public Task<IList<IAvgMonthlySpendingViewModel>> GetAvgMonthlySpendingByUserIdAsync(int userId);
         public Task<IGetAccessTokenAndLatestCursorResponse?> GetAccessTokenAndLatestCursor(int itemId);
         public Task<bool> SyncTransactionsForItem(ITransactionsDTO dto);
     }

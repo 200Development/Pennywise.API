@@ -17,9 +17,9 @@ namespace Pennywise.API.Repositories
     {
         private readonly string _connectionString;
 
-        public PennywiseRepository(string connectionString)
+        public PennywiseRepository(IConfiguration config)
         {
-            _connectionString = connectionString;
+            _connectionString = config.GetConnectionString("Pennywise");
         }
 
         /// <summary>
@@ -93,6 +93,19 @@ namespace Pennywise.API.Repositories
             try
             {
                 return await FetchAccessTokenAndCursorFromDatabase(itemId);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public async Task<IList<IAvgMonthlySpendingViewModel>> GetAvgMonthlySpendingByUserIdAsync(int userId)
+        {
+            try
+            {
+                return await FetchAvgMonthlySpendingFromDatabase(userId);
             }
             catch (Exception e)
             {
@@ -219,6 +232,29 @@ namespace Pennywise.API.Repositories
             return viewModel;
         }
 
+        private async Task<IList<IAvgMonthlySpendingViewModel>> FetchAvgMonthlySpendingFromDatabase(int userId)
+        {
+            var viewModel = new List<IAvgMonthlySpendingViewModel>();
+            await using(var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                var query = "SELECT * FROM vw_AverageMonthlySpending";
+                await using(var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    await using(var reader = await command.ExecuteReaderAsync())
+                    {
+                        while(reader.Read())
+                        {
+                            viewModel.Add(ParseAvgMonthlySpending(reader));
+                        }
+                    }
+                }
+            }
+
+            return viewModel;
+        }
+
         private async Task<IGetAccessTokenAndLatestCursorResponse?> FetchAccessTokenAndCursorFromDatabase(int itemId)
         {
             var response = new GetAccessTokenAndLatestCursorResponse();
@@ -278,6 +314,18 @@ namespace Pennywise.API.Repositories
             };
 
             return account;
+        }
+
+        private static IAvgMonthlySpendingViewModel ParseAvgMonthlySpending(SqlDataReader reader)
+        {
+            var spending = new AvgMonthlySpendingViewModel
+            {
+                Category = reader["Category"].ToString() ?? string.Empty,
+                Avg3MonthSpending = TryGetDecimal(reader, "Avg3MonthSpending"),
+                Avg6MonthSpending = TryGetDecimal(reader, "Avg6MonthSpending"),
+                Avg12MonthSpending = TryGetDecimal(reader, "Avg12MonthSpending"),
+            };
+            return spending;
         }
 
         private static decimal TryGetDecimal(SqlDataReader reader, string columnName)
